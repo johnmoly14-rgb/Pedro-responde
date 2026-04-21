@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pedro Responde - Secuencial</title>
+    <style>
+        body { font-family: sans-serif; background: #000; color: #fff; text-align: center; margin: 0; padding: 20px; }
+        .box { background: #1a1a1a; padding: 20px; border-radius: 15px; max-width: 400px; margin: auto; border: 1px solid #333; }
+        input { width: 90%; padding: 15px; margin: 10px 0; border-radius: 8px; border: none; font-size: 16px; background: #222; color: #fff; }
+        button { background: #444; color: white; border: none; padding: 15px; width: 95%; border-radius: 8px; font-weight: bold; margin-top: 10px; }
+        
+        #contenedor-res { margin-top: 20px; padding: 15px; background: #111; border: 1px dashed #444; min-height: 40px; position: relative; }
+        #texto-respuesta { color: #00ff00; font-size: 18px; font-weight: bold; min-height: 24px; line-height: 1.4; }
+        .pencil { position: absolute; right: 5px; top: 5px; cursor: pointer; font-size: 18px; opacity: 0.5; }
+
+        /* Botones Invisibles */
+        #boton-derecho { position: fixed; bottom: 0; right: 0; width: 80px; height: 80px; background: transparent; z-index: 9999; }
+        #boton-izquierdo { position: fixed; bottom: 0; left: 0; width: 80px; height: 80px; background: transparent; z-index: 9999; }
+
+        /* Ventanas Modales */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10000; padding-top: 50px; }
+        .modal-cont { background: #fff; color: #000; width: 85%; margin: auto; padding: 20px; border-radius: 10px; text-align: left; }
+        .btn-modal { padding: 10px; width: 100%; margin-top: 10px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="box">
+    <h2>Pedro Responde</h2>
+    <input type="text" id="peticion" placeholder="Petición..." autocomplete="off" spellcheck="false">
+    <input type="text" id="pregunta" placeholder="Tu pregunta..." autocomplete="off">
+    <button onclick="darRespuesta()">Preguntar</button>
+
+    <div id="contenedor-res">
+        <span class="pencil" onclick="borrarTodo()">✏️</span>
+        <div id="texto-respuesta"></div>
+    </div>
+</div>
+
+<div id="boton-derecho" onclick="verPreguntas()"></div>
+<div id="boton-izquierdo" onclick="abrirEscritura()"></div>
+
+<div id="modal-historial" class="modal">
+    <div class="modal-cont">
+        <h3>Preguntas registradas</h3>
+        <div id="lista-p" style="max-height: 250px; overflow-y: auto;"></div>
+        <button class="btn-modal" onclick="cerrarModales()" style="background: #000; color: #fff;">Cerrar</button>
+        <button class="btn-modal" onclick="limpiarHistorial()" style="background: red; color: #fff;">Borrar Historial</button>
+    </div>
+</div>
+
+<div id="modal-escritura" class="modal">
+    <div class="modal-cont">
+        <h3>Respuesta Manual</h3>
+        <input type="text" id="input-manual" placeholder="Escribe la respuesta..." style="background: #eee; color: #000; border: 1px solid #ccc;">
+        <button class="btn-modal" onclick="guardarRespuestaManual()" style="background: #03dac6; color: #000;">Guardar</button>
+        <button class="btn-modal" onclick="cerrarModales()" style="background: #000; color: #fff;">Cerrar</button>
+    </div>
+</div>
+
+<script>
+    const inputPet = document.getElementById('peticion');
+    const fraseMagica = "Pedro por favor responde.";
+    
+    // Configuración de respuestas secuenciales
+    const respuestasSecuenciales = [
+        "Continúa preguntando que yo te responderé",
+        "Quiero que demuestres que confías en mí, sigue preguntando",
+        "No te desanimes, sí confías en mí continúa preguntando",
+        "Entrega el teléfono a su dueño y dame 15 minutos para procesar tus preguntas"
+    ];
+    
+    let indiceSecuencia = 0;
+    let respuestaReal = "";
+    let trucoActivado = false;
+    let historial = JSON.parse(localStorage.getItem('pedro_history')) || [];
+
+    function actualizarVisual(largoActual) {
+        let textoSustituto = "";
+        for (let i = 0; i < largoActual; i++) {
+            if (i < fraseMagica.length) textoSustituto += fraseMagica[i];
+        }
+        inputPet.value = textoSustituto;
+    }
+
+    inputPet.addEventListener('input', function(e) {
+        let val = inputPet.value;
+        if (!trucoActivado && val.includes('.')) {
+            trucoActivado = true;
+            inputPet.value = val.replace('.', '');
+            return;
+        }
+        if (trucoActivado && val.slice(-1) === '.') {
+            trucoActivado = false;
+            inputPet.value = val.slice(0, -1);
+            return;
+        }
+        if (trucoActivado) {
+            let data = e.data;
+            if (data) respuestaReal += data;
+            actualizarVisual(val.length);
+        }
+    });
+
+    function darRespuesta() {
+        const preg = document.getElementById('pregunta').value;
+        if (preg.trim() !== "") {
+            historial.push(preg);
+            localStorage.setItem('pedro_history', JSON.stringify(historial));
+        }
+
+        const salida = document.getElementById('texto-respuesta');
+        
+        // Lógica de prioridad:
+        // 1. Si escribiste algo con el punto o el botón manual, muestra eso.
+        // 2. Si no escribiste nada, muestra la frase secuencial que toca.
+        if (respuestaReal.trim() !== "") {
+            salida.innerText = respuestaReal;
+        } else {
+            salida.innerText = respuestasSecuenciales[indiceSecuencia];
+            // Avanzar al siguiente mensaje (y volver al inicio si llega al final)
+            indiceSecuencia = (indiceSecuencia + 1) % respuestasSecuenciales.length;
+        }
+    }
+
+    function borrarTodo() {
+        inputPet.value = "";
+        document.getElementById('pregunta').value = "";
+        document.getElementById('texto-respuesta').innerText = "";
+        document.getElementById('input-manual').value = "";
+        respuestaReal = "";
+        trucoActivado = false;
+    }
+
+    function verPreguntas() {
+        const lista = document.getElementById('lista-p');
+        lista.innerHTML = historial.length > 0 ? historial.map((p, i) => `<p style="border-bottom:1px solid #eee; padding:5px;">${i+1}. ${p}</p>`).join('') : "Vacío.";
+        document.getElementById('modal-historial').style.display = 'block';
+    }
+
+    function abrirEscritura() {
+        document.getElementById('modal-escritura').style.display = 'block';
+    }
+
+    function guardarRespuestaManual() {
+        respuestaReal = document.getElementById('input-manual').value;
+        cerrarModales();
+    }
+
+    function cerrarModales() {
+        document.getElementById('modal-historial').style.display = 'none';
+        document.getElementById('modal-escritura').style.display = 'none';
+    }
+
+    function limpiarHistorial() {
+        if(confirm("¿Borrar historial?")) {
+            historial = [];
+            localStorage.removeItem('pedro_history');
+            indiceSecuencia = 0; // Reiniciar también la secuencia de frases
+            verPreguntas();
+        }
+    }
+</script>
+
+</body>
+</html>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#000000">
+
+
+
+
+
