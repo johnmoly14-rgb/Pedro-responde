@@ -259,3 +259,4 @@
     </script>
 </body>
 </html>
+<link rel="manifest" href="manifest.json">
